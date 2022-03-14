@@ -5,7 +5,7 @@ include(cmake/utils.cmake)
 
 renderer_extract_version()
 
-project(renderer VERSION ${RENDERER_VERSION} LANGUAGES CXX)
+project(renderer VERSION ${RENDERER_VERSION} LANGUAGES C CXX)
 message(STATUS "Build renderer: ${RENDERER_VERSION}")
 include(GNUInstallDirs)
 
@@ -17,23 +17,16 @@ endif()
 # Set master project variable.
 if(NOT DEFINED RENDERER_MASTER_PROJECT)
 	if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-		set(CMAKE_MASTER_PROJECT ON)
+		set(RENDERER_MASTER_PROJECT ON)
 	else()
-		set(CMAKE_MASTER_PROJECT OFF)
+		set(RENDERER_MASTER_PROJECT OFF)
 	endif()
 endif()
-
 
 ##### Options #####
 
 # Build all
 option(RENDERER_BUILD_ALL "Build all artifacts" OFF)
-
-# Build benchmarks
-option(RENDERER_BUILD_BENCHMARKS "Build benchmarks" OFF)
-
-# Build tests
-option(RENDERER_BUILD_TEST "Build tests" OFF)
 
 # Use Sanitizer
 option(RENDERER_SANITIZE_ADDRESS "Enable address sanitizer in tests" OFF)
@@ -43,6 +36,9 @@ option(RENDERER_BUILD_WARNINGS "Enable build warnings" OFF)
 
 # Build install
 option(RENDERER_INSTALL "Generate install target" ${RENDERER_MASTER_PROEJCT})
+
+# Use resource files
+option(RENDERER_USE_RESOURCES "Use resource files" ON)
 
 # Use clang-tidy
 option(RENDERER_TIDY "Run clang-tidy" OFF)
@@ -56,14 +52,75 @@ endif()
 ##### Dependency Management
 
 find_package(Threads REQUIRED)
+find_package(OpenGL REQUIRED)
 add_subdirectory(third-party)
+
+##### Resource Preprocessor #####
+
+add_library(renderer-shader-preprocessor-if INTERFACE)
+add_library(renderer::shader-preprocessor-if ALIAS renderer-shader-preprocessor-if)
+target_include_directories(renderer-shader-preprocessor-if
+	INTERFACE
+		"shader_preprocessor/include"
+)
+
+add_executable(renderer-shader-preprocessor)
+add_executable(renderer::shader-preprocessor ALIAS renderer-shader-preprocessor)
+target_sources(renderer-shader-preprocessor
+	PRIVATE
+		"shader_preprocessor/main.cpp"
+)
+
+target_link_libraries(renderer-shader-preprocessor
+	PRIVATE
+		zlib::zlib
+		cxxopts::cxxopts
+		OpenGL::GL
+		OpenGL::GLU
+		glfw::glfw
+		glad::glad
+		Threads::Threads
+		tsl::robin_map
+		renderer::shader-preprocessor-if
+)
+
+
+##### Resources #####
+if(RENDERER_USE_RESOURCES)
+include(cmake/cmrc/CMakeRC.cmake)
+	file(GLOB_RECURSE RESOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/*")
+	message(STATUS "Resource build enabled")
+	cmrc_add_resource_library(renderer-resources 
+		ALIAS renderer::resources 
+		NAMESPACE rc
+		WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+		${RESOURCE_FILES}
+	)
+
+	target_compile_definitions( renderer-resources
+		PUBLIC
+			RENDERER_RC_ENABLED
+	)
+endif()
 
 ##### Main Library #####
 add_library(renderer-backend STATIC)
 add_library(renderer::backend ALIAS renderer-backend)
 target_sources(renderer-backend
 	PRIVATE
-		src/backend/test.cpp
+		"renderer/renderer.cpp"
+		"renderer/gl/buffer.cpp"
+		"renderer/gl/framebuffer.cpp"
+		"renderer/gl/renderbuffer.cpp"
+		"renderer/gl/shader.cpp"
+		"renderer/gl/shader_program.cpp"
+		"renderer/gl/texture.cpp"
+		"renderer/gl/vertex_array.cpp"
+		"renderer/core/camera.cpp"
+		"renderer/core/vertex.cpp"
+		"renderer/core/obj_loader.cpp"
+		"renderer/core/tex_loader.cpp"
+		"renderer/core/shader_loader.cpp"
 )
 target_include_directories(renderer-backend
 	PUBLIC
@@ -75,10 +132,19 @@ target_compile_features(renderer-backend
 )
 target_link_libraries(renderer-backend
 	PUBLIC
+		OpenGL::GL
+		OpenGL::GLU
 		glad::glad
 		glfw::glfw
 		glm::glm
 		Threads::Threads
+		tinyobjloader::tinyobjloader
+		stb::stb
+		cxxopts::cxxopts
+		zlib::zlib
+		tsl::robin_map
+
+		renderer::resources
 )
 set_target_properties(renderer-backend 
 	PROPERTIES
@@ -93,8 +159,8 @@ add_executable(renderer-executable)
 add_executable(renderer::renderer ALIAS renderer-executable)
 target_sources(renderer-executable
 	PRIVATE
-		src/main.cpp
-)
+		"renderer/main.cpp"
+ )
 target_include_directories(renderer-executable
 	PRIVATE
 		include/
@@ -107,8 +173,6 @@ target_link_libraries(renderer-executable
 	PRIVATE
 		renderer::backend
 		imgui::imgui
-		glad::glad
-		glm::glm
 		glfw::glfw
 		Threads::Threads
 )
