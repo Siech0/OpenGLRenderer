@@ -53,6 +53,11 @@ namespace gfx::gl
 #endif
 	}
 
+	void ShaderProgram::parameter(ShaderProgram::Parameter param, bool value) noexcept
+	{
+		glProgramParameteri(m_id, (GLenum)param, value ? GL_TRUE : GL_FALSE);
+	}
+
 	int ShaderProgram::getUniform(const std::string& uniform_name) const
 	{
 		return getUniform(uniform_name.c_str());
@@ -123,6 +128,11 @@ namespace gfx::gl
 		}
 
 		return attributes;
+	}
+
+	ShaderProgram::TargetFlags ShaderProgram::flags() const noexcept
+	{
+		return m_flags;
 	}
 
 	unsigned int ShaderProgram::id() const noexcept

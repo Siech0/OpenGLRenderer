@@ -69,7 +69,7 @@ add_executable(renderer::shader-preprocessor ALIAS renderer-shader-preprocessor)
 target_sources(renderer-shader-preprocessor
 	PRIVATE
 		"shader_preprocessor/main.cpp"
-)
+ "renderer/gl/shader_pipeline.cpp")
 
 target_link_libraries(renderer-shader-preprocessor
 	PRIVATE
@@ -121,7 +121,7 @@ target_sources(renderer-backend
 		"renderer/core/obj_loader.cpp"
 		"renderer/core/tex_loader.cpp"
 		"renderer/core/shader_loader.cpp"
-)
+ "renderer/gl/shader_pipeline.cpp")
 target_include_directories(renderer-backend
 	PUBLIC
 		include/
@@ -160,7 +160,7 @@ add_executable(renderer::renderer ALIAS renderer-executable)
 target_sources(renderer-executable
 	PRIVATE
 		"renderer/main.cpp"
- )
+  "renderer/gl/shader_pipeline.cpp")
 target_include_directories(renderer-executable
 	PRIVATE
 		include/
